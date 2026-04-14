@@ -15,7 +15,6 @@ def load_and_process_data():
     """Load and preprocess data with caching for performance"""
     df = pd.read_csv('covid_19_data.csv')
     
-    # Optimized date parsing
     df['ObservationDate'] = pd.to_datetime(df['ObservationDate'])
     
     def parse_mixed_dates(date_str):
@@ -29,7 +28,6 @@ def load_and_process_data():
     
     df['Last Update'] = df['Last Update'].apply(parse_mixed_dates)
     
-    # Clean country names efficiently
     country_mapping = {
         'Mainland China': 'China', 'US': 'United States', 'UK': 'United Kingdom',
         'Korea, South': 'South Korea', 'Republic of Korea': 'South Korea',
@@ -47,7 +45,7 @@ df = load_and_process_data()
 latest_date = df['ObservationDate'].max()
 earliest_date = df['ObservationDate'].min()
 
-# ============== GLOBAL SUMMARY (OPTIMIZED) ==============
+# ============== GLOBAL SUMMARY ==============
 latest_data = df[df['ObservationDate'] == latest_date]
 global_summary = latest_data.groupby('Country/Region', as_index=False).agg({
     'Confirmed': 'sum', 'Deaths': 'sum', 'Recovered': 'sum'
@@ -58,13 +56,12 @@ global_summary['Mortality Rate (%)'] = (global_summary['Deaths'] / global_summar
 global_summary['Recovery Rate (%)'] = (global_summary['Recovered'] / global_summary['Confirmed'] * 100).round(2)
 global_summary = global_summary.replace([np.inf, -np.inf], 0).fillna(0)
 
-# Pre-calculate totals
 total_confirmed = global_summary['Confirmed'].sum()
 total_deaths = global_summary['Deaths'].sum()
 total_recovered = global_summary['Recovered'].sum()
 total_active = total_confirmed - total_deaths - total_recovered
 
-# ============== DAILY GLOBAL TRENDS (OPTIMIZED) ==============
+# ============== DAILY GLOBAL TRENDS ==============
 daily_global = df.groupby('ObservationDate', as_index=False).agg({
     'Confirmed': 'sum', 'Deaths': 'sum', 'Recovered': 'sum'
 })
@@ -72,7 +69,7 @@ daily_global['New Cases'] = daily_global['Confirmed'].diff().fillna(0).clip(lowe
 daily_global['New Deaths'] = daily_global['Deaths'].diff().fillna(0).clip(lower=0)
 daily_global['New Recovered'] = daily_global['Recovered'].diff().fillna(0).clip(lower=0)
 
-# ============== REGIONAL MAPPING (OPTIMIZED) ==============
+# ============== REGIONAL MAPPING ==============
 region_mapping = {
     'China': 'East Asia', 'Japan': 'East Asia', 'South Korea': 'East Asia', 'Taiwan': 'East Asia',
     'Hong Kong': 'East Asia', 'Macau': 'East Asia',
@@ -110,7 +107,6 @@ country_daily = df.groupby(['ObservationDate', 'Country/Region'], as_index=False
 
 countries = sorted(df['Country/Region'].unique())
 
-# Pre-calculate rates
 mortality_rate = (total_deaths / total_confirmed * 100) if total_confirmed > 0 else 0
 recovery_rate = (total_recovered / total_confirmed * 100) if total_confirmed > 0 else 0
 avg_daily_cases = daily_global['New Cases'].tail(7).mean()
@@ -120,11 +116,9 @@ today_new_cases = daily_global['New Cases'].iloc[-1]
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.CYBORG, dbc.icons.BOOTSTRAP])
 app.title = "COVID-19 Intelligence Dashboard"
 
-# Modern Color Scheme
 colors = {
     'bg': '#0a0e17',
     'card_bg': '#131a2c',
-    'header_bg': '#0f172a',
     'text': '#f1f5f9',
     'text_secondary': '#94a3b8',
     'confirmed': '#ef4444',
@@ -132,12 +126,9 @@ colors = {
     'deaths': '#b91c1c',
     'recovered': '#10b981',
     'accent': '#3b82f6',
-    'border': '#1e293b',
-    'success': '#22c55e',
-    'warning': '#eab308'
+    'border': '#1e293b'
 }
 
-# Optimized custom CSS
 app.index_string = '''
 <!DOCTYPE html>
 <html>
@@ -157,11 +148,11 @@ app.index_string = '''
                 padding: 24px;
                 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 border: 1px solid #1e293b;
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             }
             .card-stats:hover {
                 transform: translateY(-4px);
-                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
                 border-color: #334155;
             }
             .dashboard-title {
@@ -253,7 +244,7 @@ app.index_string = '''
 </html>
 '''
 
-# ============== OPTIMIZED COMPONENTS ==============
+# ============== COMPONENT BUILDERS ==============
 def create_stat_card(title, value, color, icon, trend=None, trend_up=None):
     trend_html = None
     if trend:
@@ -287,7 +278,7 @@ def create_section_header(title, icon, badge=None):
         ], className="d-flex align-items-center")
     ], className="mb-3")
 
-# ============== STAT CARDS ROW ==============
+# ============== STAT CARDS ==============
 summary_row = dbc.Row([
     dbc.Col(create_stat_card("Total Confirmed", total_confirmed, colors['confirmed'], 
                              "virus", f"+{today_new_cases:,.0f} today", True), width=3),
@@ -298,7 +289,6 @@ summary_row = dbc.Row([
                              "heart-fill", f"{recovery_rate:.2f}% recovery", True), width=3),
 ], className="g-3 mb-4")
 
-# Secondary stats with glass effect
 secondary_stats = dbc.Row([
     dbc.Col(dbc.Card([
         dbc.CardBody([
@@ -318,7 +308,7 @@ secondary_stats = dbc.Row([
         dbc.CardBody([
             html.Div([html.I(className="bi bi-calendar-range me-2", style={'color': colors['accent']}),
                      html.Span("Timeline", className="text-secondary")], className="mb-2"),
-            html.H6(f"{earliest_date.strftime('%b %d')} - {latest_date.strftime('%b %d')}", 
+            html.H6(f"{earliest_date.strftime('%b %d')} - {latest_date.strftime('%b %d, %Y')}", 
                    className="mb-0", style={'color': colors['text']})
         ])
     ], className="card-stats glass-effect"), width=3),
@@ -340,7 +330,6 @@ secondary_stats = dbc.Row([
 
 # ============== APP LAYOUT ==============
 app.layout = dbc.Container([
-    # Header with glass effect
     dbc.Row([
         dbc.Col([
             html.Div([
@@ -354,7 +343,6 @@ app.layout = dbc.Container([
     summary_row,
     secondary_stats,
     
-    # Global Timeline
     dbc.Row([
         dbc.Col([
             dbc.Card([
@@ -364,7 +352,6 @@ app.layout = dbc.Container([
         ], width=12)
     ], className="mb-4"),
     
-    # Regional Analysis
     dbc.Row([
         dbc.Col([
             dbc.Card([
@@ -380,7 +367,6 @@ app.layout = dbc.Container([
         ], width=8),
     ], className="mb-4"),
     
-    # Heatmap
     dbc.Row([
         dbc.Col([
             dbc.Card([
@@ -390,7 +376,6 @@ app.layout = dbc.Container([
         ], width=12)
     ], className="mb-4"),
     
-    # Top Countries
     dbc.Row([
         dbc.Col([
             dbc.Card([
@@ -400,7 +385,6 @@ app.layout = dbc.Container([
         ], width=12)
     ], className="mb-4"),
     
-    # Country Comparison (Recovered removed)
     dbc.Row([
         dbc.Col([
             dbc.Card([
@@ -438,55 +422,56 @@ app.layout = dbc.Container([
         ], width=12)
     ], className="mb-4"),
     
-    # Footer
     html.Footer([
         html.Hr(style={'borderColor': colors['border'], 'opacity': 0.5}),
         dbc.Row([
             dbc.Col(html.P([html.I(className="bi bi-database me-2"), 
                            "Data: Johns Hopkins University CSSE"], 
-                          className="text-center", style={'color': colors['text_secondary']}), width=12)
+                          className="text-center", style={'color': colors['text_secondary']}), width=12),
+            dbc.Col(html.P(f"Last Updated: {datetime.now().strftime('%B %d, %Y at %H:%M')} | Powered by Dash & Plotly", 
+                          className="text-center", style={'color': colors['text_secondary'], 'fontSize': '0.8rem'}), width=12)
         ])
     ], className="mt-4 pb-3")
     
 ], fluid=True, style={'backgroundColor': 'transparent', 'minHeight': '100vh', 'padding': '24px'})
 
-# ============== OPTIMIZED CALLBACKS ==============
+# ============== CALLBACKS ==============
 @app.callback(Output('global-timeline', 'figure'), Input('global-timeline', 'id'))
 def update_global_timeline(_):
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
     fig.add_trace(go.Bar(
         x=daily_global['ObservationDate'], y=daily_global['New Cases'],
-        name='Daily New Cases', marker_color=colors['confirmed'], 
-        opacity=0.7, hovertemplate='%{x|%b %d, %Y}<br>New Cases: %{y:,.0f}<extra></extra>',
+        name='Daily New Cases', marker_color=colors['confirmed'], opacity=0.6,
+        hovertemplate='%{x|%b %d, %Y}<br>New Cases: %{y:,.0f}<extra></extra>',
         hoverlabel=dict(bgcolor='#1e293b', font_color='#f1f5f9', font_size=14)
     ), secondary_y=False)
     
     fig.add_trace(go.Scatter(
         x=daily_global['ObservationDate'], y=daily_global['Confirmed'],
-        name='Confirmed', line=dict(color=colors['confirmed'], width=3),
+        name='Cumulative Confirmed', line=dict(color=colors['confirmed'], width=3), mode='lines',
         hovertemplate='%{x|%b %d, %Y}<br>Confirmed: %{y:,.0f}<extra></extra>'
     ), secondary_y=True)
     
     fig.add_trace(go.Scatter(
         x=daily_global['ObservationDate'], y=daily_global['Deaths'],
-        name='Deaths', line=dict(color=colors['deaths'], width=2),
+        name='Cumulative Deaths', line=dict(color=colors['deaths'], width=2.5), mode='lines',
         hovertemplate='%{x|%b %d, %Y}<br>Deaths: %{y:,.0f}<extra></extra>'
     ), secondary_y=True)
     
     fig.add_trace(go.Scatter(
         x=daily_global['ObservationDate'], y=daily_global['Recovered'],
-        name='Recovered', line=dict(color=colors['recovered'], width=2),
+        name='Cumulative Recovered', line=dict(color=colors['recovered'], width=2.5), mode='lines',
         hovertemplate='%{x|%b %d, %Y}<br>Recovered: %{y:,.0f}<extra></extra>'
     ), secondary_y=True)
     
     fig.update_layout(
         template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        font={'color': colors['text']}, hovermode='x unified', height=400,
-        margin=dict(l=40, r=40, t=20, b=40), dragmode='pan',
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, bgcolor='rgba(0,0,0,0)')
+        font={'color': colors['text']}, hovermode='x unified',
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5, bgcolor='rgba(0,0,0,0)'),
+        height=400, margin=dict(l=40, r=40, t=20, b=40), dragmode='pan'
     )
-    fig.update_xaxes(title="", gridcolor=colors['border'])
+    fig.update_xaxes(title_text="", gridcolor=colors['border'], tickformat='%b %d, %Y')
     fig.update_yaxes(title_text="Daily New Cases", secondary_y=False, gridcolor=colors['border'])
     fig.update_yaxes(title_text="Cumulative Cases", secondary_y=True, gridcolor=colors['border'])
     return fig
@@ -582,7 +567,7 @@ def update_country_comparison(selected_countries, selected_metric):
     fig = go.Figure()
     colors_list = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#d946ef']
     
-    for i, country in enumerate(selected_countries[:10]):  # Limit to 10 countries for performance
+    for i, country in enumerate(selected_countries[:10]):
         country_data = country_daily[country_daily['Country/Region'] == country].copy()
         if len(country_data) == 0:
             continue
@@ -604,4 +589,4 @@ def update_country_comparison(selected_countries, selected_metric):
 
 # ============== RUN ==============
 if __name__ == '__main__':
-    app.run(debug=False, host='127.0.0.1', port=8052)  # Set debug=False for better performance
+    app.run(debug=False, host='127.0.0.1', port=8052)
